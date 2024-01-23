@@ -4,7 +4,7 @@ from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 import time
 
-from thasus.persistence.discovered_domains import get_all_domains, update_domains
+from thasus.persistence.discovered_domains import get_all_domains, update_domains, get_all_test_domains
 
 DAY_IN_MILLIS = 24 * 60 * 60 * 1000
 WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
@@ -15,7 +15,8 @@ ignore_domains = [
 
 
 def update_website_freshness(current_time_epoch):
-    all_domains = get_all_domains()
+    # all_domains = get_all_domains()
+    all_domains = get_all_test_domains(current_time_epoch)
     print(f"Found domains - {len(all_domains)}")
 
     updated_domains = list()
@@ -39,7 +40,7 @@ def update_website_freshness(current_time_epoch):
               f"and hashed in {hash_time- content_extraction_time}"
               )
         updated_domains.append(domain)
-    update_domains(updated_domains)
+    # update_domains(updated_domains)
 
 
 def is_website_content_fresh(domain, current_time_epoch):
@@ -50,7 +51,6 @@ def is_website_content_fresh(domain, current_time_epoch):
 
     if domain['scanned_at'] <= freshness_threshold:
         return False
-
 
     return True
 
