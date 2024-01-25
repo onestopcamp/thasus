@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+# from datetime import datetime
 # from dateutil.tz import gettz
 import time
 
@@ -7,7 +7,14 @@ from thasus.website_scanner import update_website_freshness
 
 
 def lambda_handler(event, context):
-    start = time.time() # marker for when this function begins operation
+    """Function to interface with AWS... I think.
+
+    :param event: Seems to be the variable that interfaces with AWS.
+    :param context: Unused.
+    :returns: A dictionary containing a statusCode and a body of a JSON dump.
+    """
+
+    start = time.time()  # save the timestamp for when this function begins operation
     run_mode = event['run_mode']
 
     # exit early if not actually checking domains
@@ -18,17 +25,21 @@ def lambda_handler(event, context):
         }
 
     print('Thasus running check')
-    current_time_epoch = int(time.time()) # marker for when this function ACTUALLY begins operation
-    update_website_freshness(current_time_epoch) # call freshness function for the current time
-    print(f"Thasus ran in {time.time() - start} millis") # print how long the freshness function took to complete
+    current_time_epoch = int(time.time())  # current timestamp as a value to insert as freshness
+    update_website_freshness(current_time_epoch)  # call freshness function for the "current" time
+    print(f"Thasus ran in {time.time() - start} millis")  # print how long the freshness function took to complete
     return {
         'statusCode': 200,
         'body': json.dumps(f"Thasus executed at {get_now()}")
     }
 
 
-# simple function for quickly grabbing the current time, with parameters in mind
 def get_now():
+    """Grabs current time.
+
+    :return: 'time', as int
+    """
+
     # now_pacific = datetime.now(gettz('US/Pacific'))
     # return now_pacific.isoformat(timespec='seconds')
     return int(time.time())
@@ -40,4 +51,3 @@ if __name__ == "__main__":
         'run_mode': 'check_domains'
     }
     lambda_handler(event, None)
-
