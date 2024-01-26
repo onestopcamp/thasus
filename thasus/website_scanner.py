@@ -41,6 +41,8 @@ def update_website_freshness(current_time_epoch):
         start = time.time()  # timestamp marker for when this domain started its scan
         page_content = get_page_content(domain).encode('utf-8')  # String: obtain the page content
         content_extraction_time = time.time()  # timestamp marker for when the content finished extracting
+
+        # todo think about taking the hash of the important part of the page (specific spans or divs)
         page_content_hash = hashlib.md5(page_content).hexdigest()  # calculate the hash based on the page content
         hash_time = time.time()  # timestamp marker for when the hash finishes calculating
 
@@ -56,6 +58,8 @@ def update_website_freshness(current_time_epoch):
               f"and hashed in {hash_time - content_extraction_time}"
               )
         updated_domains.append(domain)  # attach updated domain to a list
+
+    # execute
     # update_domains(updated_domains)
 
 
