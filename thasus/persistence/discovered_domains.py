@@ -40,7 +40,7 @@ def get_all_test_domains(current_time_epoch):
 
     urls_to_scan = [
         'https://www.illuminationlearningstudio.com/summer-camps-2024/',
-        'https://www.kongacademy.org/',
+        'https://www.kongacademy.org/',  # https://www.kongacademy.org/in-person-classes ??
         'https://app.amilia.com/store/en/school-of-acrobatics-and-new-circus-arts/shop/programs/83792',
         'https://www.arenasports.net/schools-out-camp/',
         'http://pinnacleexplorations.org',
