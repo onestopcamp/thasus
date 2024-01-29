@@ -39,7 +39,7 @@ class TestFreshness(unittest.TestCase):
             # if the offset is above 0, that means that the time is higher, which is closer to current time
             assert is_website_content_fresh(domain, current_time_epoch)
         else:
-            # Fresh / True
+            # otherwise, it isn't less than a day old, which means it isn't fresh
             assert not is_website_content_fresh(domain, current_time_epoch)
 
         # make sure the 'scanned_at' field is updated
@@ -69,7 +69,7 @@ class TestFreshness(unittest.TestCase):
         check_hash(domain, hash_new)
         assert domain['website_hash'] == hash_new
 
-        # if the hash needed updating, make sure content_status reflects that
+        # if the domain's hash did not match, meaning the domain needs updating, make sure content_status reflects that
         if hash_old != hash_new:
             assert domain['content_status'] == 'extract'
         else:
