@@ -7,9 +7,9 @@ from thasus.website_scanner import update_website_freshness
 
 
 def lambda_handler(event, context):
-    """Function to interface with AWS... I think.
+    """Function to interface with AWS.
 
-    :param event: Seems to be the variable that interfaces with AWS.
+    :param event: The variable that interfaces with AWS. Passed in through lambda function.
     :param context: Unused.
     :returns: A dictionary containing a statusCode and a body of a JSON dump.
     """
@@ -25,7 +25,7 @@ def lambda_handler(event, context):
         }
 
     print('Thasus running check')
-    current_time_epoch = int(time.time())  # current timestamp as a value to insert as freshness
+    current_time_epoch = get_now()  # current timestamp as a value to insert as freshness
     update_website_freshness(current_time_epoch)  # call freshness function for the "current" time
     print(f"Thasus ran in {time.time() - start} millis")  # print how long the freshness function took to complete
     return {
