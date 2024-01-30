@@ -41,13 +41,14 @@ def update_website_freshness(current_time_epoch):
             continue
 
         start = time.time()  # timestamp marker for when this domain started its scan
-        page_content = get_page_content(domain).encode('utf-8')  # String: obtain the page content
-        content_extraction_time = time.time()  # timestamp marker for when the content finished extracting
+        page_result = get_page_content(domain)  # tuple containing page content and the result of the function
 
-        # failure case. not necessarily a qualifier, but note that the failure flag is an int and not a String
-        if page_content == -1:
-            failed_domains.append(domain)  # attach failed domain to the list
+        # failure case.
+        if page_result[1] is not None:
+            failed_domains.append((domain, page_result[1]))  # attach failed domain and exception text to the list
             continue
+        page_content = page_result[0].encode('utf-8')  # String: obtain the page content
+        content_extraction_time = time.time()  # timestamp marker for when the content finished extracting
 
         """ perhaps look into if there is a better way to do this; may be too complex or out of this program's scope.
             the upside is that a double-length md5 hash cannot possibly fail, and the super rare possibility of a hash
@@ -65,6 +66,8 @@ def update_website_freshness(current_time_epoch):
               f"and hashed in {hash_time - content_extraction_time}"
               )
         updated_domains.append(domain)  # attach updated domain to the list
+
+    # NOTE: S3 bucket will be named osc-scraper-thasus
 
     # failed_domains
     # update_domains(updated_domains)
@@ -102,7 +105,7 @@ def get_page_content(domain):
     """Gets page content from a domain. Uses BeautifulSoup to parse HTML.
 
     :param domain: domain to get the content from. should contain url
-    :return: massive String representing page text
+    :return: a tuple containing: (massive String representing page text, error message)
     """
 
     # attempt to request data from the domain and parse it into a string
@@ -116,14 +119,14 @@ def get_page_content(domain):
         page = urlopen(req)  # May raise URLError. Returns an object containing a redirected url among other things.
         soup = BeautifulSoup(page, 'html.parser')  # May raise HTMLParseError.
         # Note: Changing the parser requires rewriting scraping code, as the resulting text would be different.
-        return soup.getText()
+        return soup.getText(), None
 
     # if it fails, print that it failed as well as the error and traceback
     except Exception as e:
         print(f"Unable to get camp data for {domain['url']}")
         print(e)
         print(traceback.format_exc())
-        return -1  # Flag
+        return None, e
 
 
 def check_hash(domain, page_content_hash):

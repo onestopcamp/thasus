@@ -78,7 +78,7 @@ class TestFreshness(unittest.TestCase):
         """Tests the function get_page_content.
 
         The function is passed a domain which contains a url field and a domain name. It should be able to be properly
-        scanned, but if not, it will print an error and return a non-string, value, which flags the domain as failed.
+        scanned, but if not, it will print an error and return it as part of a tuple.
 
         """
 
@@ -89,10 +89,10 @@ class TestFreshness(unittest.TestCase):
         }
 
         actual_result = get_page_content(domain)
-        # successful scans return page content, which is a string and not the error int flag
+        # successful scans return page content and have None as their error message
         if expected_result:
-            self.assertNotEqual(actual_result, -1)
+            self.assertIsNone(actual_result[1])
 
-        # failed scans return a flag, which in this case is set to -1
+        # failed scans return an error message
         else:
-            self.assertEqual(actual_result, -1)
+            self.assertIsNotNone(actual_result[1])
