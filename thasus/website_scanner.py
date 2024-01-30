@@ -42,15 +42,10 @@ def update_website_freshness(current_time_epoch):
         page_content = get_page_content(domain).encode('utf-8')  # String: obtain the page content
         content_extraction_time = time.time()  # timestamp marker for when the content finished extracting
 
-        # todo think about taking the hash of the important part of the page (specific spans or divs)
+        # perhaps look into if there is a better way to do this; may be too complex
         page_content_hash = hashlib.md5(page_content).hexdigest()  # calculate the hash based on the page content
         hash_time = time.time()  # timestamp marker for when the hash finishes calculating
-
-        # if the domain does not have a hash or the hash does not match:
-        if 'website_hash' not in domain or domain['website_hash'] != page_content_hash:
-            domain['website_hash'] = page_content_hash  # replace hash for the domain
-            domain['content_status'] = 'extract'  # update content status
-        domain['scanned_at'] = current_time_epoch  # update timestamp for domain
+        check_hash(domain, page_content_hash)  # updates the hash and content status of a domain if necessary
 
         # print how long this operation took
         print(f"{domain['domain_name']} extracted in "
@@ -59,7 +54,7 @@ def update_website_freshness(current_time_epoch):
               )
         updated_domains.append(domain)  # attach updated domain to a list
 
-    # execute
+
     # update_domains(updated_domains)
 
 
@@ -67,20 +62,27 @@ def is_website_content_fresh(domain, current_time_epoch):
     """Determines whether content is "fresh enough".
 
     A domain is considered not fresh if it was never scanned or was scanned at least one full day ago.
+    Differences SMALLER than DAY_IN_MILLIS indicate freshness, since the offset is in the past. This means closer
+    values are newer.
+    This function also updates the domain's 'scanned_at' field.
 
     :param domain: domain to determine freshness of
     :param current_time_epoch: current time as an int
-    :return: Boolean
+    :return: Boolean representing False for not fresh and True for fresh.
     """
 
     if 'scanned_at' not in domain:
+        domain['scanned_at'] = current_time_epoch  # update timestamp for domain
         return False
 
-    freshness_threshold = current_time_epoch - DAY_IN_MILLIS
+    freshness_threshold = current_time_epoch - DAY_IN_MILLIS  # if it's more than a day old, it is not fresh
 
+    # if exactly a day old or more, it is not fresh
     if domain['scanned_at'] <= freshness_threshold:
+        domain['scanned_at'] = current_time_epoch  # update timestamp for domain
         return False
 
+    domain['scanned_at'] = current_time_epoch  # update timestamp for domain
     return True
 
 
@@ -108,3 +110,19 @@ def get_page_content(domain):
         print(f"Unable to get camp data for {domain['url']}")
         print(e)
         print(traceback.format_exc())
+
+
+def check_hash(domain, page_content_hash):
+    """Checks if a domain's hash and content status needs updating, and updates it if so.
+
+    If the hash needed to be inserted or updated, content_status is set to 'extract'.
+
+    :param domain: Domain to check
+    :param page_content_hash: String representing an MD5 hash of a page's content
+    :return: None
+    """
+
+    # if the domain does not have a hash or the hash does not match:
+    if 'website_hash' not in domain or domain['website_hash'] != page_content_hash:
+        domain['website_hash'] = page_content_hash  # replace hash for the domain
+        domain['content_status'] = 'extract'  # update content status

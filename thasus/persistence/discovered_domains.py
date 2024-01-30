@@ -5,7 +5,7 @@ WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
 
 
 def get_all_domains():
-    """Fetches domains from an external table.
+    """Fetches domains from a table.
 
     This function accesses a DynamoDB resource and generates a table of discovered domains from it.
     For details on the full return value of dynamodb.scan(), see this link and scroll to "Response Structure":
