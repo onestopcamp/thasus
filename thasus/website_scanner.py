@@ -29,7 +29,9 @@ def update_website_freshness(current_time_epoch):
     all_domains = get_all_test_domains(current_time_epoch)
     print(f"Found domains - {len(all_domains)}")
 
-    updated_domains = list()  # list of domains that have been updated. currently has no use
+    updated_domains = list()  # list of domains that have been updated.
+    failed_domains = list()  # list of domains that failed to be updated.
+
     for domain in all_domains:
         # do not update domain if it is fresh
         if is_website_content_fresh(domain, current_time_epoch):
@@ -42,7 +44,17 @@ def update_website_freshness(current_time_epoch):
         page_content = get_page_content(domain).encode('utf-8')  # String: obtain the page content
         content_extraction_time = time.time()  # timestamp marker for when the content finished extracting
 
-        # perhaps look into if there is a better way to do this; may be too complex
+        # failure case. not necessarily a qualifier, but note that the failure flag is an int and not a String
+        if page_content == -1:
+            failed_domains.append(domain)  # attach failed domain to the list
+            continue
+
+        """ perhaps look into if there is a better way to do this; may be too complex or out of this program's scope.
+            the upside is that a double-length md5 hash cannot possibly fail, and the super rare possibility of a hash
+            collision is so small that it doesn't really affect the purpose of the hash.
+            however, due to the volatile nature of websites, this may cause a large amount of false positives.
+            depending on how expensive the scraper is, this may or may not be a big deal.
+        """
         page_content_hash = hashlib.md5(page_content).hexdigest()  # calculate the hash based on the page content
         hash_time = time.time()  # timestamp marker for when the hash finishes calculating
         check_hash(domain, page_content_hash)  # updates the hash and content status of a domain if necessary
@@ -52,9 +64,9 @@ def update_website_freshness(current_time_epoch):
               f"{content_extraction_time - start} "
               f"and hashed in {hash_time - content_extraction_time}"
               )
-        updated_domains.append(domain)  # attach updated domain to a list
+        updated_domains.append(domain)  # attach updated domain to the list
 
-
+    # failed_domains
     # update_domains(updated_domains)
 
 
@@ -97,12 +109,13 @@ def get_page_content(domain):
     try:
         hdr = {
             'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/102.0.0.0 Safari/537.36',
+                          'Chrome/102.0.0.0 Safari/537.36',  # Spoofs browser user-agents
         }
         print(f"Extracting domain {domain['domain']}")
-        req = Request(domain['url'], headers=hdr)
-        page = urlopen(req)
-        soup = BeautifulSoup(page, 'html.parser')
+        req = Request(domain['url'], headers=hdr)  # Request object. Used in the following line.
+        page = urlopen(req)  # May raise URLError. Returns an object containing a redirected url among other things.
+        soup = BeautifulSoup(page, 'html.parser')  # May raise HTMLParseError.
+        # Note: Changing the parser requires rewriting scraping code, as the resulting text would be different.
         return soup.getText()
 
     # if it fails, print that it failed as well as the error and traceback
@@ -110,6 +123,7 @@ def get_page_content(domain):
         print(f"Unable to get camp data for {domain['url']}")
         print(e)
         print(traceback.format_exc())
+        return -1  # Flag
 
 
 def check_hash(domain, page_content_hash):
