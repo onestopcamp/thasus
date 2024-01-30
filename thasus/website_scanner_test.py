@@ -5,7 +5,7 @@
 import unittest
 #import pytest
 from parameterized import parameterized
-from thasus.website_scanner import is_website_content_fresh, check_hash
+from thasus.website_scanner import is_website_content_fresh, check_hash, get_page_content
 #from lambda_function import get_now
 
 DAY_IN_MILLIS = 24 * 60 * 60 * 1000
@@ -69,3 +69,30 @@ class TestFreshness(unittest.TestCase):
             assert domain['content_status'] == 'extract'
         else:
             assert domain['content_status'] != 'extract'
+
+    @parameterized.expand([
+        ('https://www.illuminationlearningstudio.com/summer-camps-2024/', True),  # may not work in the future
+        ('https://dsgbkds.dfjgkd.sdkgfjh', False)  # expected to fail, obviously
+    ])
+    def test_get_page_content(self, url, expected_result):
+        """Tests the function get_page_content.
+
+        The function is passed a domain which contains a url field and a domain name. It should be able to be properly
+        scanned, but if not, it will print an error and return it as part of a tuple.
+
+        """
+
+        # declare test domain
+        domain = {
+            'domain': str(expected_result),  # garbage value
+            'url': url
+        }
+
+        actual_result = get_page_content(domain)
+        # successful scans return page content and have None as their error message
+        if expected_result:
+            self.assertIsNone(actual_result[1])
+
+        # failed scans return an error message
+        else:
+            self.assertIsNotNone(actual_result[1])
