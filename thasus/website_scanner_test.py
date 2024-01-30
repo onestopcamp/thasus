@@ -1,5 +1,4 @@
-"""Program containing unit tests for the following programs:
-- website_scanner.py
+"""Program containing unit tests for website_scanner.py
 
 """
 
@@ -10,39 +9,35 @@ from thasus.website_scanner import is_website_content_fresh, check_hash
 from lambda_function import get_now
 
 DAY_IN_MILLIS = 24 * 60 * 60 * 1000
+current_time_epoch = 1706574375  # example time
 
 
 # @pytest.fixture(scope="class")
 class TestFreshness(unittest.TestCase):
 
     @parameterized.expand([
-        (get_now(), -1),  # older than time epoch; not fresh
-        (get_now(), 0),  # same age as time epoch; not fresh
-        (get_now(), 1)  # younger than time epoch; fresh
+        (current_time_epoch - DAY_IN_MILLIS - 1, False),  # older than time epoch; not fresh
+        (current_time_epoch - DAY_IN_MILLIS, False),  # same age as time epoch; not fresh
+        (current_time_epoch - DAY_IN_MILLIS + 1, True)  # younger than time epoch; fresh
     ])
-    def test_timestamp(self, current_time_epoch, offset):
+    def test_timestamp(self, test_time_epoch, expected_result):
         """Tests the function is_website_content_fresh.
 
         False means not fresh, True means fresh. Since the current freshness modifier is one day, the test domain is
-        set to have a scanned time of exactly one day old, plus or minus an offset of one millisecond.
+        set to have a scanned time of exactly one day old, plus or minus an 'offset' of one millisecond.
 
         The domain is also given a new timestamp.
         """
 
         # declare test domain
         domain = {
-            'scanned_at': current_time_epoch - DAY_IN_MILLIS + offset
+            'scanned_at': test_time_epoch
         }
 
-        # actual test cases
-        if offset > 0:
-            # if the offset is above 0, that means that the time is higher, which is closer to current time
-            assert is_website_content_fresh(domain, current_time_epoch)
-        else:
-            # otherwise, it isn't less than a day old, which means it isn't fresh
-            assert not is_website_content_fresh(domain, current_time_epoch)
+        # make sure expected result matches the actual result of the function
+        self.assertEqual(expected_result, is_website_content_fresh(domain, current_time_epoch))
 
-        # make sure the 'scanned_at' field is updated
+        # make sure the 'scanned_at' field is updated to the "current" time
         assert domain['scanned_at'] == current_time_epoch
 
     @parameterized.expand([
