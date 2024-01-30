@@ -3,10 +3,10 @@
 """
 
 import unittest
-import pytest
+#import pytest
 from parameterized import parameterized
 from thasus.website_scanner import is_website_content_fresh, check_hash
-from lambda_function import get_now
+#from lambda_function import get_now
 
 DAY_IN_MILLIS = 24 * 60 * 60 * 1000
 current_time_epoch = 1706574375  # example time
