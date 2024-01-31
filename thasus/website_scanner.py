@@ -4,7 +4,7 @@ from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 import time
 
-from thasus.persistence.discovered_domains import get_all_domains, update_domains, get_all_test_domains
+from thasus.persistence.tracked_domains import get_all_domains, update_domains, get_all_test_domains
 
 DAY_IN_MILLIS = 24 * 60 * 60 * 1000
 WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS

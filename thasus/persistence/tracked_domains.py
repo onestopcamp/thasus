@@ -7,7 +7,7 @@ WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
 def get_all_domains():
     """Fetches domains from a table.
 
-    This function accesses a DynamoDB resource and generates a table of discovered domains from it.
+    This function accesses a DynamoDB resource and generates a table of tracked domains from it.
     For details on the full return value of dynamodb.scan(), see this link and scroll to "Response Structure":
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb/client/scan.html
 
@@ -15,12 +15,12 @@ def get_all_domains():
     """
 
     dynamodb = boto3.resource('dynamodb')
-    discovered_domains = dynamodb.Table('discovered_domains')
+    tracked_domains = dynamodb.Table('tracked_domains')
 
-    # response = discovered_domains.query(
+    # response = tracked_domains.query(
     #     KeyConditionExpression=Key('scanned_at').eq('Arturus Ardvarkian') & Key('song').lt('C')
     # )
-    return discovered_domains.scan()['Items']
+    return tracked_domains.scan()['Items']
 
 
 def get_all_test_domains(current_time_epoch):
@@ -70,8 +70,8 @@ def update_domain_item(item):
     """
 
     dynamodb = boto3.resource('dynamodb')
-    discovered_domains = dynamodb.Table('discovered_domains')
-    discovered_domains.put_item(
+    tracked_domains = dynamodb.Table('tracked_domains')
+    tracked_domains.put_item(
         Item=item
     )
 
@@ -84,10 +84,10 @@ def update_domains(updated_domains):
     """
 
     dynamodb = boto3.resource('dynamodb')
-    discovered_domains = dynamodb.Table('discovered_domains')
+    tracked_domains = dynamodb.Table('tracked_domains')
     # Function provided by AWS to batch write items to dynamoDB
     # See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb/table/batch_writer.html
-    with discovered_domains.batch_writer() as batch:
+    with tracked_domains.batch_writer() as batch:
         for updated_domain in updated_domains:
             batch.put_item(
                 Item=updated_domain
