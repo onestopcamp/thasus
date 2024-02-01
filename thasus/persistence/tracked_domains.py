@@ -1,6 +1,6 @@
 import boto3
 
-from thasus.persistence.ddb_cred import get_ddb_client  # For working locally. Contains AWS credentials.
+#from thasus.persistence.ddb_cred import get_ddb_client  # For working locally. Contains AWS credentials.
 
 DAY_IN_MILLIS = 24 * 60 * 60 * 1000
 WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
