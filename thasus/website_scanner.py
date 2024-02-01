@@ -25,14 +25,22 @@ def update_website_freshness(current_time_epoch):
     :return: None
     """
 
-    # all_domains = get_all_domains()
-    all_domains = get_all_test_domains(current_time_epoch)
-    print(f"Found domains - {len(all_domains)}")
+    all_domains = get_all_domains()
+    # all_domains = get_all_test_domains(current_time_epoch)
+    domain_total = len(all_domains)
+    print(f"Found domains - {domain_total}")
 
     updated_domains = list()  # list of domains that have been updated.
     failed_domains = list()  # list of domains that failed to be updated.
 
+    # counters to help keep track of things
+    domain_count = 0
+    updated_count = 0
+    failed_count = 0
+
     for domain in all_domains:
+        domain_count += 1
+        print(f"Processing domain {domain_count} of {domain_total}")
         # do not update domain if it is fresh
         if is_website_content_fresh(domain, current_time_epoch):
             continue
@@ -46,6 +54,8 @@ def update_website_freshness(current_time_epoch):
         # failure case.
         if page_result[1] is not None:
             failed_domains.append((domain, page_result[1]))  # attach failed domain and exception text to the list
+            failed_count += 1
+            print(f"After this domain, {failed_count} have failed")
             continue
         page_content = page_result[0].encode('utf-8')  # String: obtain the page content
         content_extraction_time = time.time()  # timestamp marker for when the content finished extracting
@@ -66,11 +76,15 @@ def update_website_freshness(current_time_epoch):
               f"and hashed in {hash_time - content_extraction_time}"
               )
         updated_domains.append(domain)  # attach updated domain to the list
+        updated_count += 1
+        print(f"After this domain, {updated_count} have updated")
+
+    update_domains(updated_domains)
 
     # NOTE: S3 bucket will be named osc-scraper-thasus
 
     # failed_domains
-    # update_domains(updated_domains)
+    # updated_domains
 
 
 def is_website_content_fresh(domain, current_time_epoch):
@@ -116,7 +130,7 @@ def get_page_content(domain):
         }
         print(f"Extracting domain {domain['domain']}")
         req = Request(domain['url'], headers=hdr)  # Request object. Used in the following line.
-        page = urlopen(req)  # May raise URLError. Returns an object containing a redirected url among other things.
+        page = urlopen(req)  # May raise URLError or HTTPError. Returns an object containing a redirected url among other things.
         soup = BeautifulSoup(page, 'html.parser')  # May raise HTMLParseError.
         # Note: Changing the parser requires rewriting scraping code, as the resulting text would be different.
         return soup.getText(), None

@@ -1,5 +1,7 @@
 import boto3
 
+#from thasus.persistence.ddb_cred import get_ddb_client  # For working locally. Contains AWS credentials.
+
 DAY_IN_MILLIS = 24 * 60 * 60 * 1000
 WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
 
@@ -14,13 +16,16 @@ def get_all_domains():
     :return: A dictionary containing only the Items field returned by the .scan() function, which is a list.
     """
 
+    #dynamodb = get_ddb_client()
     dynamodb = boto3.resource('dynamodb')
     tracked_domains = dynamodb.Table('tracked_domains')
+
 
     # response = tracked_domains.query(
     #     KeyConditionExpression=Key('scanned_at').eq('Arturus Ardvarkian') & Key('song').lt('C')
     # )
     return tracked_domains.scan()['Items']
+    #return tracked_domains.scan(Limit=50)['Items']
 
 
 def get_all_test_domains(current_time_epoch):
@@ -69,6 +74,7 @@ def update_domain_item(item):
     :return: None
     """
 
+    #dynamodb = get_ddb_client()
     dynamodb = boto3.resource('dynamodb')
     tracked_domains = dynamodb.Table('tracked_domains')
     tracked_domains.put_item(
@@ -83,6 +89,7 @@ def update_domains(updated_domains):
     :return: None
     """
 
+    #dynamodb = get_ddb_client()
     dynamodb = boto3.resource('dynamodb')
     tracked_domains = dynamodb.Table('tracked_domains')
     # Function provided by AWS to batch write items to dynamoDB
