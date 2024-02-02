@@ -2,8 +2,7 @@ import boto3
 
 # from thasus.persistence.credentials import get_ddb_client, get_s3_client  # For working locally. Contains AWS creds.
 
-DAY_IN_MILLIS = 24 * 60 * 60 * 1000
-WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
+DAY_IN_SECS = 24 * 60 * 60
 
 
 def get_all_domains():
@@ -17,14 +16,16 @@ def get_all_domains():
     """
 
     # dynamodb = get_ddb_client()
+
     dynamodb = boto3.resource('dynamodb')
     tracked_domains = dynamodb.Table('tracked_domains')
 
     # response = tracked_domains.query(
     #     KeyConditionExpression=Key('scanned_at').eq('Arturus Ardvarkian') & Key('song').lt('C')
     # )
+    # return tracked_domains.scan(Limit=50)['Items']
+
     return tracked_domains.scan()['Items']
-    # return tracked_domains.scan(Limit=125)['Items']
 
 
 def get_all_test_domains(current_time_epoch):
@@ -58,7 +59,7 @@ def get_all_test_domains(current_time_epoch):
             'domain': url.replace('https://www.', '').replace('http://', '').replace('https://', '').split('/')[0],
             'url': url,
             'domain_name': url.replace('https://www.', '').replace('http://', '').replace('https://', '').split('/')[0],
-            'scanned_at': current_time_epoch - DAY_IN_MILLIS - 1,
+            'scanned_at': current_time_epoch - DAY_IN_SECS - 1,
             'website_hash': None,
             'content_status': 'latest'
         })
@@ -88,6 +89,7 @@ def update_domains(updated_domains):
     """
 
     # dynamodb = get_ddb_client()
+
     dynamodb = boto3.resource('dynamodb')
     tracked_domains = dynamodb.Table('tracked_domains')
     # Function provided by AWS to batch write items to dynamoDB
@@ -108,6 +110,7 @@ def publish_csv(csv_file, domain_list):
     """
 
     # s3 = get_s3_client()
+
     s3 = boto3.resource('s3')
     s3object = s3.Object('osc-scraper-thasus', csv_file)
     s3object.put(Body=str(domain_list))

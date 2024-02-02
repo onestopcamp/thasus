@@ -35,7 +35,7 @@ def lambda_handler(event, context):
 
 
 def get_now():
-    """Grabs current time.
+    """Grabs current time. It is in seconds from the epoch, which is January 1, 1970.
 
     :return: 'time', as int
     """

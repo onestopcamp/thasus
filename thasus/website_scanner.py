@@ -9,8 +9,7 @@ import csv
 from thasus.persistence.tracked_domains import get_all_domains, update_domains, publish_csv
 # from thasus.persistence.tracked_domains import get_all_test_domains
 
-DAY_IN_MILLIS = 24 * 60 * 60 * 1000
-WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
+DAY_IN_SECS = 24 * 60 * 60
 
 ignore_domains = [
     'tilthalliance.org'
@@ -41,11 +40,16 @@ def update_website_freshness(current_time_epoch):
     updated_count = 0
     failed_count = 0
 
+    # convert time to human-readable in pst
+    timezone_adjust = current_time_epoch - 28800
+    time_struct = time.gmtime(timezone_adjust)
+    date_time = time.strftime("%d_%b_%y_%H-%M-%S", time_struct)
+
     for domain in all_domains:
         domain_count += 1
         print(f"Processing domain {domain_count} of {domain_total}")
         # do not update domain if it is fresh
-        if is_website_content_fresh(domain, current_time_epoch):
+        if is_website_content_fresh(domain, current_time_epoch, date_time):
             continue
         # do not update blacklisted domains
         if domain['domain'] in ignore_domains:
@@ -86,13 +90,22 @@ def update_website_freshness(current_time_epoch):
     update_domains(updated_domains)
 
     # update and publish a csv formatted string to the S3 bucket
-    update_string = convert_to_csv(updated_domains)
-    failed_string = convert_to_csv(failed_domains)
-    publish_csv('update_' + str(current_time_epoch) + '.csv', update_string)
-    publish_csv('failed_' + str(current_time_epoch) + '.csv', failed_string)
+    # make sure there are domains that need to be updated
+    if len(updated_domains) > 0:
+        update_string = convert_to_csv(updated_domains)
+    else:
+        update_string = ''
+    # make sure there are failed domains too
+    if len(failed_domains) > 0:
+        failed_string = convert_to_csv(failed_domains)
+    else:
+        failed_string = ''
+
+    publish_csv('updated_websites_' + date_time + '.csv', update_string)
+    publish_csv('failed_websites_' + date_time + '.csv', failed_string)
 
 
-def is_website_content_fresh(domain, current_time_epoch):
+def is_website_content_fresh(domain, current_time_epoch, date_time):
     """Determines whether content is "fresh enough".
 
     A domain is considered not fresh if it was never scanned or was scanned at least one full day ago.
@@ -101,22 +114,30 @@ def is_website_content_fresh(domain, current_time_epoch):
     This function also updates the domain's 'scanned_at' field.
 
     :param domain: domain to determine freshness of
-    :param current_time_epoch: current time as an int
+    :param current_time_epoch: current UTC time epoch as an int
+    :param date_time: string representing the date and time in PST
     :return: Boolean representing False for not fresh and True for fresh.
     """
 
+    # convert datetime into a string that's more human-readable and doesn't need to abide by file system restrictions
+    dt = date_time.replace("_", " ")
+    dt = dt.replace("-", ":")
+
     if 'scanned_at' not in domain:
         domain['scanned_at'] = current_time_epoch  # update timestamp for domain
+        domain['scanned_datetime'] = dt
         return False
 
-    freshness_threshold = current_time_epoch - DAY_IN_MILLIS  # if it's more than a day old, it is not fresh
+    freshness_threshold = current_time_epoch - DAY_IN_SECS  # if it's more than a day old, it is not fresh
 
     # if exactly a day old or more, it is not fresh
     if domain['scanned_at'] <= freshness_threshold:
         domain['scanned_at'] = current_time_epoch  # update timestamp for domain
+        domain['scanned_datetime'] = dt
         return False
 
     domain['scanned_at'] = current_time_epoch  # update timestamp for domain
+    domain['scanned_datetime'] = dt
     return True
 
 
