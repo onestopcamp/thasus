@@ -23,8 +23,8 @@ def get_all_domains():
     # response = tracked_domains.query(
     #     KeyConditionExpression=Key('scanned_at').eq('Arturus Ardvarkian') & Key('song').lt('C')
     # )
-    # return tracked_domains.scan()['Items']
-    return tracked_domains.scan(Limit=125)['Items']
+    return tracked_domains.scan()['Items']
+    # return tracked_domains.scan(Limit=125)['Items']
 
 
 def get_all_test_domains(current_time_epoch):
