@@ -3,8 +3,11 @@ import traceback
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 import time
+import io
+import csv
 
-from thasus.persistence.tracked_domains import get_all_domains, update_domains, get_all_test_domains
+from thasus.persistence.tracked_domains import get_all_domains, update_domains, publish_csv
+# from thasus.persistence.tracked_domains import get_all_test_domains
 
 DAY_IN_MILLIS = 24 * 60 * 60 * 1000
 WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
@@ -53,7 +56,8 @@ def update_website_freshness(current_time_epoch):
 
         # failure case.
         if page_result[1] is not None:
-            failed_domains.append((domain, page_result[1]))  # attach failed domain and exception text to the list
+            domain['error_code'] = page_result[1]  # add exception text as a field to the domain. tuples SUCK
+            failed_domains.append(domain)  # attach failed domain to the list
             failed_count += 1
             print(f"After this domain, {failed_count} have failed")
             continue
@@ -81,10 +85,11 @@ def update_website_freshness(current_time_epoch):
 
     update_domains(updated_domains)
 
-    # NOTE: S3 bucket will be named osc-scraper-thasus
-
-    # failed_domains
-    # updated_domains
+    # update and publish a csv formatted string to the S3 bucket
+    update_string = convert_to_csv(updated_domains)
+    failed_string = convert_to_csv(failed_domains)
+    publish_csv('update_' + str(current_time_epoch) + '.csv', update_string)
+    publish_csv('failed_' + str(current_time_epoch) + '.csv', failed_string)
 
 
 def is_website_content_fresh(domain, current_time_epoch):
@@ -130,7 +135,7 @@ def get_page_content(domain):
         }
         print(f"Extracting domain {domain['domain']}")
         req = Request(domain['url'], headers=hdr)  # Request object. Used in the following line.
-        page = urlopen(req)  # May raise URLError or HTTPError. Returns an object containing a redirected url among other things.
+        page = urlopen(req)  # May raise URLError or HTTPError. Returns a redirected url object.
         soup = BeautifulSoup(page, 'html.parser')  # May raise HTMLParseError.
         # Note: Changing the parser requires rewriting scraping code, as the resulting text would be different.
         return soup.getText(), None
@@ -157,3 +162,22 @@ def check_hash(domain, page_content_hash):
     if 'website_hash' not in domain or domain['website_hash'] != page_content_hash:
         domain['website_hash'] = page_content_hash  # replace hash for the domain
         domain['content_status'] = 'extract'  # update content status
+
+
+def convert_to_csv(domains):
+    """Converts a list of domains into a reformatted string that can be used as a CSV file.
+
+    :param domains: A list of domains.
+    :return: A string containing a reformatted domain list.
+    """
+
+    headers = list(domains[0].keys())  # create headers based on first domain. all headers are expected to be the same
+
+    file = io.StringIO()  # Spoofs a file since lambda does not have file directories
+
+    # creates a CSV string for updated domains using the spoofed file and DictWriter
+    writer = csv.DictWriter(file, headers, dialect='unix')
+    writer.writeheader()
+    writer.writerows(domains)
+
+    return file.getvalue()
