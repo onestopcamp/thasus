@@ -1,9 +1,8 @@
 import boto3
 
-#from thasus.persistence.ddb_cred import get_ddb_client  # For working locally. Contains AWS credentials.
+# from thasus.persistence.credentials import get_ddb_client, get_s3_client  # For working locally. Contains AWS creds.
 
-DAY_IN_MILLIS = 24 * 60 * 60 * 1000
-WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
+DAY_IN_SECS = 24 * 60 * 60
 
 
 def get_all_domains():
@@ -16,16 +15,17 @@ def get_all_domains():
     :return: A dictionary containing only the Items field returned by the .scan() function, which is a list.
     """
 
-    #dynamodb = get_ddb_client()
+    # dynamodb = get_ddb_client()
+
     dynamodb = boto3.resource('dynamodb')
     tracked_domains = dynamodb.Table('tracked_domains')
-
 
     # response = tracked_domains.query(
     #     KeyConditionExpression=Key('scanned_at').eq('Arturus Ardvarkian') & Key('song').lt('C')
     # )
+    # return tracked_domains.scan(Limit=50)['Items']
+
     return tracked_domains.scan()['Items']
-    #return tracked_domains.scan(Limit=50)['Items']
 
 
 def get_all_test_domains(current_time_epoch):
@@ -59,7 +59,7 @@ def get_all_test_domains(current_time_epoch):
             'domain': url.replace('https://www.', '').replace('http://', '').replace('https://', '').split('/')[0],
             'url': url,
             'domain_name': url.replace('https://www.', '').replace('http://', '').replace('https://', '').split('/')[0],
-            'scanned_at': current_time_epoch - DAY_IN_MILLIS - 1,
+            'scanned_at': current_time_epoch - DAY_IN_SECS - 1,
             'website_hash': None,
             'content_status': 'latest'
         })
@@ -74,7 +74,6 @@ def update_domain_item(item):
     :return: None
     """
 
-    #dynamodb = get_ddb_client()
     dynamodb = boto3.resource('dynamodb')
     tracked_domains = dynamodb.Table('tracked_domains')
     tracked_domains.put_item(
@@ -89,7 +88,8 @@ def update_domains(updated_domains):
     :return: None
     """
 
-    #dynamodb = get_ddb_client()
+    # dynamodb = get_ddb_client()
+
     dynamodb = boto3.resource('dynamodb')
     tracked_domains = dynamodb.Table('tracked_domains')
     # Function provided by AWS to batch write items to dynamoDB
@@ -99,3 +99,18 @@ def update_domains(updated_domains):
             batch.put_item(
                 Item=updated_domain
             )
+
+
+def publish_csv(csv_file, domain_list):
+    """Function to publish CSV files to the osc-scraper-thasus S3 bucket.
+
+    :param csv_file: Name of the file to publish to the bucket
+    :param domain_list: List of domains to be published to the bucket. Passed as pre-formatted string
+    :return: None
+    """
+
+    # s3 = get_s3_client()
+
+    s3 = boto3.resource('s3')
+    s3object = s3.Object('osc-scraper-thasus', csv_file)
+    s3object.put(Body=str(domain_list))

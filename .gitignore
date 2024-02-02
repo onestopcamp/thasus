@@ -4,4 +4,5 @@ thasus-lib.zip
 latest_run.log
 python
 .venv/
-thasus/persistence/ddb_cred.py
+thasus/persistence/credentials.py
+*.csv

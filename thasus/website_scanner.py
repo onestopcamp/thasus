@@ -3,11 +3,13 @@ import traceback
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 import time
+import io
+import csv
 
-from thasus.persistence.tracked_domains import get_all_domains, update_domains, get_all_test_domains
+from thasus.persistence.tracked_domains import get_all_domains, update_domains, publish_csv
+# from thasus.persistence.tracked_domains import get_all_test_domains
 
-DAY_IN_MILLIS = 24 * 60 * 60 * 1000
-WEEK_IN_MILLIS = 7 * DAY_IN_MILLIS
+DAY_IN_SECS = 24 * 60 * 60
 
 ignore_domains = [
     'tilthalliance.org'
@@ -38,11 +40,16 @@ def update_website_freshness(current_time_epoch):
     updated_count = 0
     failed_count = 0
 
+    # convert time to human-readable in pst
+    timezone_adjust = current_time_epoch - 28800
+    time_struct = time.gmtime(timezone_adjust)
+    date_time = time.strftime("%d_%b_%y_%H-%M-%S", time_struct)
+
     for domain in all_domains:
         domain_count += 1
         print(f"Processing domain {domain_count} of {domain_total}")
         # do not update domain if it is fresh
-        if is_website_content_fresh(domain, current_time_epoch):
+        if is_website_content_fresh(domain, current_time_epoch, date_time):
             continue
         # do not update blacklisted domains
         if domain['domain'] in ignore_domains:
@@ -53,7 +60,8 @@ def update_website_freshness(current_time_epoch):
 
         # failure case.
         if page_result[1] is not None:
-            failed_domains.append((domain, page_result[1]))  # attach failed domain and exception text to the list
+            domain['error_code'] = page_result[1]  # add exception text as a field to the domain. tuples SUCK
+            failed_domains.append(domain)  # attach failed domain to the list
             failed_count += 1
             print(f"After this domain, {failed_count} have failed")
             continue
@@ -81,13 +89,23 @@ def update_website_freshness(current_time_epoch):
 
     update_domains(updated_domains)
 
-    # NOTE: S3 bucket will be named osc-scraper-thasus
+    # update and publish a csv formatted string to the S3 bucket
+    # make sure there are domains that need to be updated
+    if len(updated_domains) > 0:
+        update_string = convert_to_csv(updated_domains)
+    else:
+        update_string = ''
+    # make sure there are failed domains too
+    if len(failed_domains) > 0:
+        failed_string = convert_to_csv(failed_domains)
+    else:
+        failed_string = ''
 
-    # failed_domains
-    # updated_domains
+    publish_csv('updated_websites_' + date_time + '.csv', update_string)
+    publish_csv('failed_websites_' + date_time + '.csv', failed_string)
 
 
-def is_website_content_fresh(domain, current_time_epoch):
+def is_website_content_fresh(domain, current_time_epoch, date_time):
     """Determines whether content is "fresh enough".
 
     A domain is considered not fresh if it was never scanned or was scanned at least one full day ago.
@@ -96,22 +114,30 @@ def is_website_content_fresh(domain, current_time_epoch):
     This function also updates the domain's 'scanned_at' field.
 
     :param domain: domain to determine freshness of
-    :param current_time_epoch: current time as an int
+    :param current_time_epoch: current UTC time epoch as an int
+    :param date_time: string representing the date and time in PST
     :return: Boolean representing False for not fresh and True for fresh.
     """
 
+    # convert datetime into a string that's more human-readable and doesn't need to abide by file system restrictions
+    dt = date_time.replace("_", " ")
+    dt = dt.replace("-", ":")
+
     if 'scanned_at' not in domain:
         domain['scanned_at'] = current_time_epoch  # update timestamp for domain
+        domain['scanned_datetime'] = dt
         return False
 
-    freshness_threshold = current_time_epoch - DAY_IN_MILLIS  # if it's more than a day old, it is not fresh
+    freshness_threshold = current_time_epoch - DAY_IN_SECS  # if it's more than a day old, it is not fresh
 
     # if exactly a day old or more, it is not fresh
     if domain['scanned_at'] <= freshness_threshold:
         domain['scanned_at'] = current_time_epoch  # update timestamp for domain
+        domain['scanned_datetime'] = dt
         return False
 
     domain['scanned_at'] = current_time_epoch  # update timestamp for domain
+    domain['scanned_datetime'] = dt
     return True
 
 
@@ -130,7 +156,7 @@ def get_page_content(domain):
         }
         print(f"Extracting domain {domain['domain']}")
         req = Request(domain['url'], headers=hdr)  # Request object. Used in the following line.
-        page = urlopen(req)  # May raise URLError or HTTPError. Returns an object containing a redirected url among other things.
+        page = urlopen(req)  # May raise URLError or HTTPError. Returns a redirected url object.
         soup = BeautifulSoup(page, 'html.parser')  # May raise HTMLParseError.
         # Note: Changing the parser requires rewriting scraping code, as the resulting text would be different.
         return soup.getText(), None
@@ -157,3 +183,22 @@ def check_hash(domain, page_content_hash):
     if 'website_hash' not in domain or domain['website_hash'] != page_content_hash:
         domain['website_hash'] = page_content_hash  # replace hash for the domain
         domain['content_status'] = 'extract'  # update content status
+
+
+def convert_to_csv(domains):
+    """Converts a list of domains into a reformatted string that can be used as a CSV file.
+
+    :param domains: A list of domains.
+    :return: A string containing a reformatted domain list.
+    """
+
+    headers = list(domains[0].keys())  # create headers based on first domain. all headers are expected to be the same
+
+    file = io.StringIO()  # Spoofs a file since lambda does not have file directories
+
+    # creates a CSV string for updated domains using the spoofed file and DictWriter
+    writer = csv.DictWriter(file, headers, dialect='unix')
+    writer.writeheader()
+    writer.writerows(domains)
+
+    return file.getvalue()

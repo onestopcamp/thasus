@@ -3,12 +3,12 @@
 """
 
 import unittest
-#import pytest
+# import pytest
 from parameterized import parameterized
 from thasus.website_scanner import is_website_content_fresh, check_hash, get_page_content
-#from lambda_function import get_now
+# from lambda_function import get_now
 
-DAY_IN_MILLIS = 24 * 60 * 60 * 1000
+DAY_IN_SECS = 24 * 60 * 60
 current_time_epoch = 1706574375  # example time
 
 
@@ -16,9 +16,9 @@ current_time_epoch = 1706574375  # example time
 class TestFreshness(unittest.TestCase):
 
     @parameterized.expand([
-        (current_time_epoch - DAY_IN_MILLIS - 1, False),  # older than time epoch; not fresh
-        (current_time_epoch - DAY_IN_MILLIS, False),  # same age as time epoch; not fresh
-        (current_time_epoch - DAY_IN_MILLIS + 1, True)  # younger than time epoch; fresh
+        (current_time_epoch - DAY_IN_SECS - 1, False),  # older than time epoch; not fresh
+        (current_time_epoch - DAY_IN_SECS, False),  # same age as time epoch; not fresh
+        (current_time_epoch - DAY_IN_SECS + 1, True)  # younger than time epoch; fresh
     ])
     def test_timestamp(self, test_time_epoch, expected_result):
         """Tests the function is_website_content_fresh.
