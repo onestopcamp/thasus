@@ -93,16 +93,16 @@ def update_website_freshness(current_time_epoch):
     # make sure there are domains that need to be updated
     if len(updated_domains) > 0:
         update_string = convert_to_csv(updated_domains)
-    else:
-        update_string = ''
+        publish_csv('updated_websites_' + date_time + '.csv', update_string)
+
     # make sure there are failed domains too
     if len(failed_domains) > 0:
         failed_string = convert_to_csv(failed_domains)
-    else:
-        failed_string = ''
+        publish_csv('failed_websites_' + date_time + '.csv', failed_string)
 
-    publish_csv('updated_websites_' + date_time + '.csv', update_string)
-    publish_csv('failed_websites_' + date_time + '.csv', failed_string)
+    print(f"Scanned websites: {domain_count}")
+    print(f"Updated websites: {updated_count}")
+    print(f"Failed websites: {failed_count}")
 
 
 def is_website_content_fresh(domain, current_time_epoch, date_time):
