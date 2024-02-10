@@ -41,7 +41,7 @@ def update_website_freshness(current_time_epoch):
     failed_count = 0
 
     # convert time to human-readable in pst
-    timezone_adjust = current_time_epoch - 28800
+    timezone_adjust = current_time_epoch - 1800
     time_struct = time.gmtime(timezone_adjust)
     date_time = time.strftime("%d_%b_%y_%H-%M-%S", time_struct)
 
@@ -83,9 +83,10 @@ def update_website_freshness(current_time_epoch):
               f"{content_extraction_time - start} "
               f"and hashed in {hash_time - content_extraction_time}"
               )
-        updated_domains.append(domain)  # attach updated domain to the list
-        updated_count += 1
-        print(f"After this domain, {updated_count} have updated")
+        if domain['content_status'] == 'extract':
+            updated_domains.append(domain)  # attach updated domain to the list
+            updated_count += 1
+            print(f"After this domain, {updated_count} have updated")
 
     update_domains(updated_domains)
 
