@@ -3,7 +3,7 @@ echo "Build and Deploy Thasus Lambda Function to AWS"
 
 echo "Packaging"
 rm -rf thasus.zip
-zip -r thasus.zip . -x "./.idea/*" "./python/*" "./thasus-lib.zip" "./latest_run.log" "./.gitignore" "./.git/*" "./venv/*"
+zip -r thasus.zip . -x "./.idea/*" "./python/*" "./*.zip" "./latest_run.log" "./.gitignore" "./.git/*" "./venv/*" "./thasus/persistence/credentials.py"
 echo "Packaging complete"
 echo "Deploying Thasus to AWS"
 aws lambda update-function-code --function-name thasus --zip-file fileb:///mnt/e/IntelliJ/thasus/thasus.zip --publish --profile thasus_cli --region us-west-2

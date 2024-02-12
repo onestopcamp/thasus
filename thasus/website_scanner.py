@@ -1,29 +1,32 @@
 import hashlib
 import traceback
 from urllib.request import Request, urlopen
+
+from dateutil.tz import gettz
+
 from bs4 import BeautifulSoup
-import time
 import io
 import csv
+from datetime import datetime
 
 from thasus.persistence.tracked_domains import get_all_domains, update_domains, publish_csv
 # from thasus.persistence.tracked_domains import get_all_test_domains
 
 DAY_IN_SECS = 24 * 60 * 60
+TOLERANCE = 1800  # 30 minutes
 
 ignore_domains = [
     'tilthalliance.org'
 ]
 
 
-def update_website_freshness(current_time_epoch):
+def update_website_freshness():
     """Function to check whether a website is 'fresh', and if it is not, update it.
 
     Freshness is determined by whether a website has been updated in a certain amount of time.
     Additionally, a website can still be fresh even if it is old. Page content is taken as a string and hashed.
     If the hash matches, the website is still fresh, but its timestamp gets updated.
 
-    :param current_time_epoch: current time as an int
     :return: None
     """
 
@@ -41,21 +44,20 @@ def update_website_freshness(current_time_epoch):
     failed_count = 0
 
     # convert time to human-readable in pst
-    timezone_adjust = current_time_epoch - 1800
-    time_struct = time.gmtime(timezone_adjust)
-    date_time = time.strftime("%d_%b_%y_%H-%M-%S", time_struct)
+    current_time_epoch = datetime.now().timestamp()  # get the current time to feed in to scans
+    date_time = datetime.now(gettz('US/Pacific')).strftime("%d_%m_%yT%H-%M-%S")  # convert to human-readable in PST
 
     for domain in all_domains:
         domain_count += 1
         print(f"Processing domain {domain_count} of {domain_total}")
         # do not update domain if it is fresh
-        if is_website_content_fresh(domain, current_time_epoch, date_time):
+        if is_website_content_fresh(domain, int(current_time_epoch), date_time):  # convert epoch to int
             continue
         # do not update blacklisted domains
         if domain['domain'] in ignore_domains:
             continue
 
-        start = time.time()  # timestamp marker for when this domain started its scan
+        start = datetime.now().timestamp()  # timestamp marker for when this domain started its scan
         page_result = get_page_content(domain)  # tuple containing page content and the result of the function
 
         # failure case.
@@ -66,7 +68,7 @@ def update_website_freshness(current_time_epoch):
             print(f"After this domain, {failed_count} have failed")
             continue
         page_content = page_result[0].encode('utf-8')  # String: obtain the page content
-        content_extraction_time = time.time()  # timestamp marker for when the content finished extracting
+        content_extraction_time = datetime.now().timestamp()  # epoch marker for when the content finished extracting
 
         """ perhaps look into if there is a better way to do this; may be too complex or out of this program's scope.
             the upside is that a double-length md5 hash cannot possibly fail, and the super rare possibility of a hash
@@ -75,7 +77,7 @@ def update_website_freshness(current_time_epoch):
             depending on how expensive the scraper is, this may or may not be a big deal.
         """
         page_content_hash = hashlib.md5(page_content).hexdigest()  # calculate the hash based on the page content
-        hash_time = time.time()  # timestamp marker for when the hash finishes calculating
+        hash_time = datetime.now().timestamp()  # timestamp marker for when the hash finishes calculating
         check_hash(domain, page_content_hash)  # updates the hash and content status of a domain if necessary
 
         # print how long this operation took
@@ -110,9 +112,10 @@ def is_website_content_fresh(domain, current_time_epoch, date_time):
     """Determines whether content is "fresh enough".
 
     A domain is considered not fresh if it was never scanned or was scanned at least one full day ago.
-    Differences SMALLER than DAY_IN_MILLIS indicate freshness, since the offset is in the past. This means closer
+    Differences SMALLER than DAY_IN_SEC indicate freshness, since the offset is in the past. This means closer
     values are newer.
-    This function also updates the domain's 'scanned_at' field.
+    This function also updates the domain's 'scanned_at' field if it is not fresh.
+    A TOLERANCE value is used to give some grace to AWS Lambda functions not always running at exactly the same time.
 
     :param domain: domain to determine freshness of
     :param current_time_epoch: current UTC time epoch as an int
@@ -121,24 +124,26 @@ def is_website_content_fresh(domain, current_time_epoch, date_time):
     """
 
     # convert datetime into a string that's more human-readable and doesn't need to abide by file system restrictions
-    dt = date_time.replace("_", " ")
+    dt = date_time.replace("_", "/")
     dt = dt.replace("-", ":")
 
     if 'scanned_at' not in domain:
         domain['scanned_at'] = current_time_epoch  # update timestamp for domain
-        domain['scanned_datetime'] = dt
+        domain['scanned_datetime'] = dt  # update datetime for domain
         return False
 
-    freshness_threshold = current_time_epoch - DAY_IN_SECS  # if it's more than a day old, it is not fresh
+    # if it's more than a day old, it is not fresh
+    # TOLERANCE value is added so that a daily scan is more likely to be effective. theoretically, a domain scanned
+    # yesterday should be 24 hours old, give or take; reducing the required difference to 23.5 hours might be sufficient
+    freshness_threshold = current_time_epoch - DAY_IN_SECS + TOLERANCE
 
-    # if exactly a day old or more, it is not fresh
-    if domain['scanned_at'] <= freshness_threshold:
+    # if a day old or more, it is not fresh
+    if int(domain['scanned_at']) <= freshness_threshold:  # shouldn't need typecast
         domain['scanned_at'] = current_time_epoch  # update timestamp for domain
-        domain['scanned_datetime'] = dt
+        domain['scanned_datetime'] = dt  # update datetime for domain
         return False
 
-    domain['scanned_at'] = current_time_epoch  # update timestamp for domain
-    domain['scanned_datetime'] = dt
+    # if it is fresh, simply return. scan timestamps will not be updated
     return True
 
 
@@ -198,7 +203,8 @@ def convert_to_csv(domains):
     file = io.StringIO()  # Spoofs a file since lambda does not have file directories
 
     # creates a CSV string for updated domains using the spoofed file and DictWriter
-    writer = csv.DictWriter(file, headers, dialect='unix')
+    # don't raise an error if website hash doesn't exist. preferably fill it with nothing
+    writer = csv.DictWriter(file, headers, dialect='unix', restval="", extrasaction='ignore')
     writer.writeheader()
     writer.writerows(domains)
 
