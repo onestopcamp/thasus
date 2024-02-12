@@ -1,10 +1,13 @@
 import hashlib
 import traceback
 from urllib.request import Request, urlopen
+
+from dateutil.tz import gettz
+
 from bs4 import BeautifulSoup
-import time
 import io
 import csv
+from datetime import datetime
 
 from thasus.persistence.tracked_domains import get_all_domains, update_domains, publish_csv
 # from thasus.persistence.tracked_domains import get_all_test_domains
@@ -16,7 +19,7 @@ ignore_domains = [
 ]
 
 
-def update_website_freshness(current_time_epoch):
+def update_website_freshness(now):
     """Function to check whether a website is 'fresh', and if it is not, update it.
 
     Freshness is determined by whether a website has been updated in a certain amount of time.
@@ -41,21 +44,21 @@ def update_website_freshness(current_time_epoch):
     failed_count = 0
 
     # convert time to human-readable in pst
-    timezone_adjust = current_time_epoch - 1800
-    time_struct = time.gmtime(timezone_adjust)
-    date_time = time.strftime("%d_%b_%y_%H-%M-%S", time_struct)
+
+    lambda_run_tolerance = datetime.now().timestamp() - 1800
+    local_date_time_string = datetime.now(gettz('US/Pacific')).strftime("%d/%m/%yT%H:%M:%S")
 
     for domain in all_domains:
         domain_count += 1
         print(f"Processing domain {domain_count} of {domain_total}")
         # do not update domain if it is fresh
-        if is_website_content_fresh(domain, current_time_epoch, date_time):
+        if is_website_content_fresh(domain, lambda_run_tolerance, local_date_time_string):
             continue
         # do not update blacklisted domains
         if domain['domain'] in ignore_domains:
             continue
 
-        start = time.time()  # timestamp marker for when this domain started its scan
+        start = datetime.now().timestamp()  # timestamp marker for when this domain started its scan
         page_result = get_page_content(domain)  # tuple containing page content and the result of the function
 
         # failure case.
@@ -66,7 +69,7 @@ def update_website_freshness(current_time_epoch):
             print(f"After this domain, {failed_count} have failed")
             continue
         page_content = page_result[0].encode('utf-8')  # String: obtain the page content
-        content_extraction_time = time.time()  # timestamp marker for when the content finished extracting
+        content_extraction_time = datetime.now().timestamp()  # timestamp marker for when the content finished extracting
 
         """ perhaps look into if there is a better way to do this; may be too complex or out of this program's scope.
             the upside is that a double-length md5 hash cannot possibly fail, and the super rare possibility of a hash
@@ -75,7 +78,7 @@ def update_website_freshness(current_time_epoch):
             depending on how expensive the scraper is, this may or may not be a big deal.
         """
         page_content_hash = hashlib.md5(page_content).hexdigest()  # calculate the hash based on the page content
-        hash_time = time.time()  # timestamp marker for when the hash finishes calculating
+        hash_time = datetime.now().timestamp()  # timestamp marker for when the hash finishes calculating
         check_hash(domain, page_content_hash)  # updates the hash and content status of a domain if necessary
 
         # print how long this operation took
@@ -94,12 +97,12 @@ def update_website_freshness(current_time_epoch):
     # make sure there are domains that need to be updated
     if len(updated_domains) > 0:
         update_string = convert_to_csv(updated_domains)
-        publish_csv('updated_websites_' + date_time + '.csv', update_string)
+        publish_csv('updated_websites_' + local_date_time_string + '.csv', update_string)
 
     # make sure there are failed domains too
     if len(failed_domains) > 0:
         failed_string = convert_to_csv(failed_domains)
-        publish_csv('failed_websites_' + date_time + '.csv', failed_string)
+        publish_csv('failed_websites_' + local_date_time_string + '.csv', failed_string)
 
     print(f"Scanned websites: {domain_count}")
     print(f"Updated websites: {updated_count}")
