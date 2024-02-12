@@ -135,7 +135,7 @@ def is_website_content_fresh(domain, current_time_epoch, date_time):
     freshness_threshold = current_time_epoch - DAY_IN_SECS  # if it's more than a day old, it is not fresh
 
     # if exactly a day old or more, it is not fresh
-    if domain['scanned_at'] <= freshness_threshold:
+    if int(domain['scanned_at']) <= freshness_threshold:  # shouldn't need typecast
         domain['scanned_at'] = current_time_epoch  # update timestamp for domain
         domain['scanned_datetime'] = dt
         return False
@@ -201,7 +201,8 @@ def convert_to_csv(domains):
     file = io.StringIO()  # Spoofs a file since lambda does not have file directories
 
     # creates a CSV string for updated domains using the spoofed file and DictWriter
-    writer = csv.DictWriter(file, headers, dialect='unix')
+    # don't raise an error if website hash doesn't exist. preferably fill it with nothing
+    writer = csv.DictWriter(file, headers, dialect='unix', restval="", extrasaction='ignore')
     writer.writeheader()
     writer.writerows(domains)
 
