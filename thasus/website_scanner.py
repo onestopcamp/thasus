@@ -112,9 +112,10 @@ def is_website_content_fresh(domain, current_time_epoch, date_time):
     """Determines whether content is "fresh enough".
 
     A domain is considered not fresh if it was never scanned or was scanned at least one full day ago.
-    Differences SMALLER than DAY_IN_MILLIS indicate freshness, since the offset is in the past. This means closer
+    Differences SMALLER than DAY_IN_SEC indicate freshness, since the offset is in the past. This means closer
     values are newer.
-    This function also updates the domain's 'scanned_at' field.
+    This function also updates the domain's 'scanned_at' field if it is not fresh.
+    A TOLERANCE value is used to give some grace to AWS Lambda functions not always running at exactly the same time.
 
     :param domain: domain to determine freshness of
     :param current_time_epoch: current UTC time epoch as an int

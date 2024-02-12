@@ -10,15 +10,20 @@ from thasus.website_scanner import is_website_content_fresh, check_hash, get_pag
 
 DAY_IN_SECS = 24 * 60 * 60
 current_time_epoch = 1706574375  # example time
+TOLERANCE = 1800
 
 
 # @pytest.fixture(scope="class")
 class TestFreshness(unittest.TestCase):
 
     @parameterized.expand([
+        (None, False),  # no scanned_at field
         (current_time_epoch - DAY_IN_SECS - 1, False),  # older than time epoch; not fresh
         (current_time_epoch - DAY_IN_SECS, False),  # same age as time epoch; not fresh
-        (current_time_epoch - DAY_IN_SECS + 1, True)  # younger than time epoch; fresh
+        (current_time_epoch - DAY_IN_SECS + 1, False),  # younger than time epoch; not fresh
+        (current_time_epoch - DAY_IN_SECS - 1 + TOLERANCE, False),  # older than tolerance; not fresh
+        (current_time_epoch - DAY_IN_SECS + TOLERANCE, False),  # same age as tolerance; not fresh
+        (current_time_epoch - DAY_IN_SECS + 1 + TOLERANCE, True)  # younger than tolerance; fresh
     ])
     def test_timestamp(self, test_time_epoch, expected_result):
         """Tests the function is_website_content_fresh.
@@ -29,16 +34,34 @@ class TestFreshness(unittest.TestCase):
         The domain is also given a new timestamp.
         """
 
-        # declare test domain
-        domain = {
-            'scanned_at': test_time_epoch
-        }
+        # test case for no time epoch
+        if test_time_epoch is None:
+            # test domain with no 'scanned_at' field
+            domain = {
+                'pizza': 'pie'
+            }
 
-        # make sure expected result matches the actual result of the function
-        self.assertEqual(expected_result, is_website_content_fresh(domain, current_time_epoch))
+            actual_result =  is_website_content_fresh(domain, current_time_epoch, "2")
+            self.assertFalse(expected_result, actual_result)
 
-        # make sure the 'scanned_at' field is updated to the "current" time
-        assert domain['scanned_at'] == current_time_epoch
+        # test cases for a time epoch
+        else:
+            # declare test domain
+            domain = {
+                'scanned_at': test_time_epoch
+            }
+
+            # make sure expected result matches the actual result of the function
+            actual_result = is_website_content_fresh(domain, current_time_epoch, "2")
+            self.assertEqual(expected_result, actual_result)
+
+        # make sure the 'scanned_at' field is updated if it is not fresh or doesn't exist
+        if not actual_result:
+            assert domain['scanned_at'] == current_time_epoch
+
+        # make sure the 'scanned_at' field is not updated if it is fresh
+        else:
+            assert domain['scanned_at'] == test_time_epoch
 
     @parameterized.expand([
         ("e062a63e86748efb4fcefbdb278e7d8c", "e062a63e86748efb4fcefbdb278e7d8c"),  # two identical garbage MD5 hashes
