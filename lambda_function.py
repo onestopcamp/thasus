@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from dateutil.tz import gettz
+# from dateutil.tz import gettz
 
 from thasus.website_scanner import update_website_freshness
 
@@ -13,7 +13,7 @@ def lambda_handler(event, context):
     :returns: A dictionary containing a statusCode and a body of a JSON dump.
     """
 
-    now = datetime.now()
+    now = datetime.now()  # datetime object for the start of this function's operation
     start = now.timestamp()  # save the timestamp for when this function begins operation
     run_mode = event['run_mode']
 
@@ -25,7 +25,7 @@ def lambda_handler(event, context):
         }
 
     print('Thasus running check')
-    update_website_freshness()  # call freshness function for the "current" time
+    update_website_freshness()  # call freshness function
     print(f"Thasus ran in {datetime.now().timestamp() - start} millis")  # print how long the freshness function took to complete
     return {
         'statusCode': 200,

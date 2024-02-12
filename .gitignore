@@ -1,6 +1,6 @@
 .idea/
 *.iml
-thasus-lib.zip
+*.zip
 latest_run.log
 python
 .venv/
