@@ -29,7 +29,8 @@ class TestFreshness(unittest.TestCase):
         """Tests the function is_website_content_fresh.
 
         False means not fresh, True means fresh. Since the current freshness modifier is one day, the test domain is
-        set to have a scanned time of exactly one day old, plus or minus an 'offset' of one millisecond.
+        set to have a scanned time of exactly one day old, plus or minus an 'offset' of one millisecond. A TOLERANCE
+        variable is also used to give AWS a bit of leeway.
 
         The domain is also given a new timestamp.
         """
@@ -41,7 +42,7 @@ class TestFreshness(unittest.TestCase):
                 'pizza': 'pie'
             }
 
-            actual_result =  is_website_content_fresh(domain, current_time_epoch, "2")
+            actual_result = is_website_content_fresh(domain, current_time_epoch, "2")
             self.assertFalse(expected_result, actual_result)
 
         # test cases for a time epoch
